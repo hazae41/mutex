@@ -6,7 +6,7 @@ Just a mutex
 npm i @hazae41/mutex
 ```
 
-[**Node Package 📦**](https://www.npmjs.com/package/@hazae41/future)
+[**Node Package 📦**](https://www.npmjs.com/package/@hazae41/mutex)
 
 ## Features
 
