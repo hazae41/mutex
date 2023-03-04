@@ -18,7 +18,7 @@ npm i @hazae41/mutex
 ## Usage
 
 ```typescript
-import { Future } from "@hazae41/mutex"
+import { Mutex } from "@hazae41/mutex"
 
 const mutex = new Mutex()
 
