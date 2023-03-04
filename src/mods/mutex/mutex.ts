@@ -3,6 +3,11 @@ export class Mutex {
   #promise?: Promise<void>
 
   /**
+   * Just a mutex
+   */
+  constructor() { }
+
+  /**
    * Lock this mutex
    * @param callback 
    * @returns 

@@ -39,11 +39,12 @@
     }
   },
   "keywords": [
-    "future",
+    "mutex",
     "promise",
     "manual",
-    "fulfill",
-    "reject",
+    "lock",
+    "wait",
+    "semaphore",
     "async",
     "signal",
     "typescript",

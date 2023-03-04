@@ -34,6 +34,12 @@ async function second() {
   })
 }
 
+async function watcher() {
+  await mutex.promise
+  // do stuff without lock
+}
+
 first()
 second()
+watcher()
 ```
