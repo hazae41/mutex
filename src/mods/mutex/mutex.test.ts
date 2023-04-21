@@ -27,12 +27,22 @@ test("mutex", async ({ test, wait }) => {
     })
   })
 
+  test("third", async () => {
+    await mutex.lock(async () => {
+      order.push("third start")
+      await new Promise(ok => setTimeout(ok, 100))
+      order.push("third end")
+    })
+  })
+
   await wait()
 
   assert(JSON.stringify(order) === JSON.stringify([
     "first start",
     "first end",
     "second start",
-    "second end"
+    "second end",
+    "third start",
+    "third end"
   ]), `unexpected order`)
 })

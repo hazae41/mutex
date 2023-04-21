@@ -12,18 +12,15 @@ export class Mutex {
    * @param callback 
    * @returns 
    */
-  lock<T>(callback: () => Promise<T>) {
-    return this.#promise
-      ? this.#promise.then(() => this.#lockSync(callback))
-      : this.#lockSync(callback)
-  }
-
-  #lockSync<T>(callback: () => Promise<T>) {
-    const promise = callback()
+  lock<T>(callback: () => Promise<T>): Promise<T> {
+    const promise = this.#promise
+      ? this.#promise.then(callback)
+      : callback()
 
     this.#promise = promise
       .then(() => { })
       .catch(() => { })
+      .finally(() => this.#promise = undefined)
 
     return promise
   }
