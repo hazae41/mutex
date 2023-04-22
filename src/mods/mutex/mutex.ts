@@ -1,16 +1,18 @@
+import { Err, Ok } from "@hazae41/result"
+
 export class Mutex<T> {
 
   #promise?: Promise<void>
-
-  #inner: T
 
   /**
    * Just a mutex
    */
   constructor(
-    inner: T
-  ) {
-    this.#inner = inner
+    readonly inner: T
+  ) { }
+
+  get locked() {
+    return Boolean(this.#promise)
   }
 
   /**
@@ -20,8 +22,8 @@ export class Mutex<T> {
    */
   lock<R>(callback: (inner: T) => Promise<R>) {
     const promise = this.#promise
-      ? this.#promise.then(() => callback(this.#inner))
-      : callback(this.#inner)
+      ? this.#promise.then(() => callback(this.inner))
+      : callback(this.inner)
 
     this.#promise = promise
       .then(() => { })
@@ -38,16 +40,16 @@ export class Mutex<T> {
    */
   tryLock<R>(callback: (inner: T) => Promise<R>) {
     if (this.#promise)
-      throw new Error(`Could not lock mutex`)
+      return new Err(new Error(`Could not lock mutex`))
 
-    const promise = callback(this.#inner)
+    const promise = callback(this.inner)
 
     this.#promise = promise
       .then(() => { })
       .catch(() => { })
       .finally(() => this.#promise = undefined)
 
-    return promise
+    return new Ok(promise)
   }
 
 }

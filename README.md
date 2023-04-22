@@ -37,11 +37,9 @@ async function second() {
 }
 
 async function third() {
-  try {
-    await mutex.tryLock(async (x) => {
-      // do stuff with x
-    })
-  } catch(e: unknown) {}
+  await mutex.tryLock(async (x) => {
+    // do stuff with x
+  }).unwrap()
 }
 
 first()
