@@ -1,4 +1,4 @@
-import { Err, Ok } from "@hazae41/result"
+import { Err, Ok, Result } from "@hazae41/result"
 
 export class Mutex<T> {
 
@@ -34,11 +34,11 @@ export class Mutex<T> {
   }
 
   /**
-   * Try to lock this mutex, returns undefined if already locked
+   * Try to lock this mutex
    * @param callback 
    * @returns 
    */
-  tryLock<R>(callback: (inner: T) => Promise<R>) {
+  tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, Error> {
     if (this.#promise)
       return new Err(new Error(`Could not lock mutex`))
 
