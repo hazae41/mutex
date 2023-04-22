@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@hazae41/mutex",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Just a mutex for JavaScript",
   "homepage": "https://github.com/hazae41/mutex",
   "repository": "github:hazae41/mutex",
