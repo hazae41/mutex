@@ -7,12 +7,10 @@ const { pathname } = new URL(import.meta.url)
 console.log(relative(directory, pathname))
 
 test("mutex", async ({ test, wait }) => {
-  const mutex = new Mutex()
-
-  const order = new Array<string>()
+  const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
-    await mutex.lock(async () => {
+    await mutex.lock(async (order) => {
       order.push("first start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("first end")
@@ -20,7 +18,7 @@ test("mutex", async ({ test, wait }) => {
   })
 
   test("second", async () => {
-    await mutex.lock(async () => {
+    await mutex.lock(async (order) => {
       order.push("second start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("second end")
@@ -28,7 +26,7 @@ test("mutex", async ({ test, wait }) => {
   })
 
   test("third", async () => {
-    await mutex.lock(async () => {
+    await mutex.lock(async (order) => {
       order.push("third start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("third end")
@@ -37,12 +35,14 @@ test("mutex", async ({ test, wait }) => {
 
   await wait()
 
-  assert(JSON.stringify(order) === JSON.stringify([
-    "first start",
-    "first end",
-    "second start",
-    "second end",
-    "third start",
-    "third end"
-  ]), `unexpected order`)
+  await mutex.lock(async (order) => {
+    assert(JSON.stringify(order) === JSON.stringify([
+      "first start",
+      "first end",
+      "second start",
+      "second end",
+      "third start",
+      "third end"
+    ]), `unexpected order`)
+  })
 })

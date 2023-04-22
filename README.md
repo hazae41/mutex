@@ -13,6 +13,8 @@ npm i @hazae41/mutex
 ### Current features
 - 100% TypeScript and ESM
 - No external dependencies
+- Can hold data
+- Rust inspired
 - Unit-tested
 
 ## Usage
@@ -20,26 +22,20 @@ npm i @hazae41/mutex
 ```typescript
 import { Mutex } from "@hazae41/mutex"
 
-const mutex = new Mutex()
+const mutex = new Mutex(123)
 
 async function first() {
-  await mutex.lock(async () => {
-    // do stuff
+  await mutex.lock(async (x) => {
+    // do stuff with x
   })
 }
 
 async function second() {
   await mutex.lock(async () => {
-    // do stuff
+    // do stuff with x
   })
-}
-
-async function watcher() {
-  await mutex.promise
-  // do stuff without lock
 }
 
 first()
 second()
-watcher()
 ```

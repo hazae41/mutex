@@ -1,21 +1,27 @@
-export class Mutex {
+export class Mutex<T> {
 
   #promise?: Promise<void>
+
+  #inner: T
 
   /**
    * Just a mutex
    */
-  constructor() { }
+  constructor(
+    inner: T
+  ) {
+    this.#inner = inner
+  }
 
   /**
    * Lock this mutex
    * @param callback 
    * @returns 
    */
-  lock<T>(callback: () => Promise<T>): Promise<T> {
+  lock<R>(callback: (inner: T) => Promise<R>) {
     const promise = this.#promise
-      ? this.#promise.then(callback)
-      : callback()
+      ? this.#promise.then(() => callback(this.#inner))
+      : callback(this.#inner)
 
     this.#promise = promise
       .then(() => { })
@@ -23,10 +29,6 @@ export class Mutex {
       .finally(() => this.#promise = undefined)
 
     return promise
-  }
-
-  get promise() {
-    return this.#promise
   }
 
 }
