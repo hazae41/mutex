@@ -33,6 +33,12 @@ test("mutex", async ({ test, wait }) => {
     })
   })
 
+  test("try lock", async () => {
+    const result = await mutex.tryLock(async () => "something")
+
+    assert(result === undefined, `expected nothing`)
+  })
+
   await wait()
 
   await mutex.lock(async (order) => {

@@ -31,4 +31,22 @@ export class Mutex<T> {
     return promise
   }
 
+  /**
+   * Try to lock this mutex, returns undefined if already locked
+   * @param callback 
+   * @returns 
+   */
+  tryLock<R>(callback: (inner: T) => Promise<R>) {
+    if (this.#promise) return
+
+    const promise = callback(this.#inner)
+
+    this.#promise = promise
+      .then(() => { })
+      .catch(() => { })
+      .finally(() => this.#promise = undefined)
+
+    return promise
+  }
+
 }
