@@ -37,7 +37,8 @@ export class Mutex<T> {
    * @returns 
    */
   tryLock<R>(callback: (inner: T) => Promise<R>) {
-    if (this.#promise) return
+    if (this.#promise)
+      throw new Error(`Could not lock mutex`)
 
     const promise = callback(this.#inner)
 

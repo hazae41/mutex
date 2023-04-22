@@ -1,4 +1,4 @@
-import { assert, test } from "@hazae41/phobos";
+import { assert, rejects, test } from "@hazae41/phobos";
 import { relative, resolve } from "path";
 import { Mutex } from "./mutex.js";
 
@@ -34,9 +34,9 @@ test("mutex", async ({ test, wait }) => {
   })
 
   test("try lock", async () => {
-    const result = await mutex.tryLock(async () => "something")
-
-    assert(result === undefined, `expected nothing`)
+    assert(await rejects(async () => {
+      await mutex.tryLock(async () => { })
+    }), `tryLock should throw`)
   })
 
   await wait()

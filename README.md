@@ -31,11 +31,20 @@ async function first() {
 }
 
 async function second() {
-  await mutex.lock(async () => {
+  await mutex.lock(async (x) => {
     // do stuff with x
   })
 }
 
+async function third() {
+  try {
+    await mutex.tryLock(async (x) => {
+      // do stuff with x
+    })
+  } catch(e: unknown) {}
+}
+
 first()
 second()
+third()
 ```
