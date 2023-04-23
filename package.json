@@ -2,7 +2,7 @@
   "type": "module",
   "name": "@hazae41/mutex",
   "version": "1.2.3",
-  "description": "Just a mutex for JavaScript",
+  "description": "Rust-like Mutex for TypeScript",
   "homepage": "https://github.com/hazae41/mutex",
   "repository": "github:hazae41/mutex",
   "author": "hazae41",

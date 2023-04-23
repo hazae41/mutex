@@ -1,6 +1,6 @@
 # Mutex
 
-Just a mutex
+Rust-like Mutex for TypeScript
 
 ```bash
 npm i @hazae41/mutex
@@ -13,8 +13,8 @@ npm i @hazae41/mutex
 ### Current features
 - 100% TypeScript and ESM
 - No external dependencies
+- Similar to Rust
 - Can hold data
-- Rust inspired
 - Unit-tested
 
 ## Usage
