@@ -53,6 +53,6 @@
     "unit-tested"
   ],
   "dependencies": {
-    "@hazae41/result": "^1.0.0"
+    "@hazae41/result": "^1.0.2"
   }
 }
