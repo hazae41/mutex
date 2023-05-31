@@ -1,5 +1,18 @@
 import { Err, Ok, Result } from "@hazae41/result"
 
+export type MutexError =
+  | MutexLockError
+
+export class MutexLockError extends Error {
+  readonly #class = MutexLockError
+  readonly name = this.#class.name
+
+  constructor() {
+    super(`Could not lock mutex`)
+  }
+
+}
+
 export class Mutex<T> {
 
   #promise?: Promise<void>
@@ -38,9 +51,9 @@ export class Mutex<T> {
    * @param callback 
    * @returns 
    */
-  tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, Error> {
+  tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, MutexLockError> {
     if (this.#promise)
-      return new Err(new Error(`Could not lock mutex`))
+      return new Err(new MutexLockError())
 
     const promise = callback(this.inner)
 
