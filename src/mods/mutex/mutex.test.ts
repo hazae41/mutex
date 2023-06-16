@@ -90,8 +90,6 @@ await test("acquire", async ({ test, wait }) => {
 
   assert(mutex.locked === false, `should be unlocked`)
 
-  console.log(mutex.inner)
-
   await mutex.lock(async (order) => {
     assert(JSON.stringify(order) === JSON.stringify([
       "first start",
