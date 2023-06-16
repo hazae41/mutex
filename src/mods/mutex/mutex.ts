@@ -33,7 +33,7 @@ export class Mutex<T> {
    * @param callback 
    * @returns 
    */
-  lock<R>(callback: (inner: T) => Promise<R>) {
+  lock<R>(callback: (inner: T) => Promise<R>): Promise<R> {
     const promise = this.#promise
       ? this.#promise.then(() => callback(this.inner))
       : callback(this.inner)
