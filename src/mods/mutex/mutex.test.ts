@@ -6,7 +6,7 @@ const directory = resolve("./dist/test/")
 const { pathname } = new URL(import.meta.url)
 console.log(relative(directory, pathname))
 
-test("mutex", async ({ test, wait }) => {
+await test("mutex", async ({ test, wait }) => {
   const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
@@ -41,6 +41,56 @@ test("mutex", async ({ test, wait }) => {
   await wait()
 
   assert(mutex.locked === false, `should be unlocked`)
+
+  await mutex.lock(async (order) => {
+    assert(JSON.stringify(order) === JSON.stringify([
+      "first start",
+      "first end",
+      "second start",
+      "second end",
+      "third start",
+      "third end"
+    ]), `unexpected order`)
+  })
+})
+
+await test("acquire", async ({ test, wait }) => {
+  const mutex = new Mutex(new Array<string>())
+
+  test("first", async () => {
+    const lock = await mutex.acquire()
+    lock.inner.push("first start")
+    await new Promise(ok => setTimeout(ok, 100))
+    lock.inner.push("first end")
+    lock.release()
+  })
+
+  test("second", async () => {
+    await mutex.lock(async (order) => {
+      order.push("second start")
+      await new Promise(ok => setTimeout(ok, 100))
+      order.push("second end")
+    })
+  })
+
+  test("third", async () => {
+    const lock = await mutex.acquire()
+    lock.inner.push("third start")
+    await new Promise(ok => setTimeout(ok, 100))
+    lock.inner.push("third end")
+    lock.release()
+  })
+
+  test("try lock", async () => {
+    const result = mutex.tryLock(async () => { })
+    assert(result.isErr(), `tryLock should err`)
+  })
+
+  await wait()
+
+  assert(mutex.locked === false, `should be unlocked`)
+
+  console.log(mutex.inner)
 
   await mutex.lock(async (order) => {
     assert(JSON.stringify(order) === JSON.stringify([
