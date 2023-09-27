@@ -89,4 +89,8 @@ export class Lock<T> {
     readonly release: () => void
   ) { }
 
+  [Symbol.dispose]() {
+    this.release()
+  }
+
 }
