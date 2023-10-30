@@ -27,7 +27,7 @@ export class Mutex<T> {
   ) { }
 
   get locked() {
-    return Boolean(this.promise)
+    return this.promise != null
   }
 
   acquire(): Promiseable<Lock<T>> {
@@ -53,10 +53,16 @@ export class Mutex<T> {
       ? this.promise.then(() => callback(this.inner))
       : callback(this.inner)
 
-    this.promise = promise
+    const pure = promise
       .then(() => { })
       .catch(() => { })
-      .finally(() => this.promise = undefined)
+    this.promise = pure
+
+    pure.finally(() => {
+      if (this.promise !== pure)
+        return
+      this.promise = undefined
+    })
 
     return promise
   }
@@ -67,15 +73,21 @@ export class Mutex<T> {
    * @returns 
    */
   tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, MutexLockError> {
-    if (this.promise)
+    if (this.promise != null)
       return new Err(new MutexLockError())
 
     const promise = callback(this.inner)
 
-    this.promise = promise
+    const pure = promise
       .then(() => { })
       .catch(() => { })
-      .finally(() => this.promise = undefined)
+    this.promise = pure
+
+    pure.finally(() => {
+      if (this.promise !== pure)
+        return
+      this.promise = undefined
+    })
 
     return new Ok(promise)
   }
