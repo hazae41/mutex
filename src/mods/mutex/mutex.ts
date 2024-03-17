@@ -1,6 +1,6 @@
 import { Future } from "@hazae41/future"
 import { Err, Ok, Result } from "@hazae41/result"
-import { Promiseable } from "libs/promises/promises.js"
+import { Awaitable } from "libs/promises/promises.js"
 
 export type MutexError =
   | MutexLockError
@@ -30,7 +30,7 @@ export class Mutex<T> {
     return this.promise != null
   }
 
-  acquire(): Promiseable<Lock<T>> {
+  acquire(): Awaitable<Lock<T>> {
     const future = new Future<void>()
     const promise = this.promise
     this.lock(() => future.promise)
@@ -68,28 +68,25 @@ export class Mutex<T> {
   }
 
   /**
-   * Try to lock this mutex
+   * Lock this mutex or throw error
+   * @param callback 
+   * @returns 
+   */
+  lockOrThrow<R>(callback: (inner: T) => Promise<R>): Promise<R> {
+    if (!this.locked)
+      return this.lock(callback)
+    throw new MutexLockError()
+  }
+
+  /**
+   * Lock this mutex or return error
    * @param callback 
    * @returns 
    */
   tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, MutexLockError> {
-    if (this.promise != null)
-      return new Err(new MutexLockError())
-
-    const promise = callback(this.inner)
-
-    const pure = promise
-      .then(() => { })
-      .catch(() => { })
-    this.promise = pure
-
-    pure.finally(() => {
-      if (this.promise !== pure)
-        return
-      this.promise = undefined
-    })
-
-    return new Ok(promise)
+    if (!this.locked)
+      return new Ok(this.lock(callback))
+    return new Err(new MutexLockError())
   }
 
 }
