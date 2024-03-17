@@ -17,7 +17,7 @@ export class MutexLockError extends Error {
 
 export class Mutex<T> {
 
-  promise?: Promise<void>
+  #promise?: Promise<void>
 
   /**
    * Just a mutex
@@ -26,13 +26,17 @@ export class Mutex<T> {
     readonly inner: T
   ) { }
 
+  get promise() {
+    return this.#promise
+  }
+
   get locked() {
-    return this.promise != null
+    return this.#promise != null
   }
 
   acquire(): Awaitable<Lock<T>> {
     const future = new Future<void>()
-    const promise = this.promise
+    const promise = this.#promise
     this.lock(() => future.promise)
 
     const release = () => future.resolve()
@@ -44,24 +48,24 @@ export class Mutex<T> {
   }
 
   /**
-   * Lock this mutex
+   * Lock this mutex or wait
    * @param callback 
    * @returns 
    */
   lock<R>(callback: (inner: T) => Promise<R>): Promise<R> {
-    const promise = this.promise
-      ? this.promise.then(() => callback(this.inner))
+    const promise = this.#promise
+      ? this.#promise.then(() => callback(this.inner))
       : callback(this.inner)
 
     const pure = promise
       .then(() => { })
       .catch(() => { })
-    this.promise = pure
+    this.#promise = pure
 
     pure.finally(() => {
-      if (this.promise !== pure)
+      if (this.#promise !== pure)
         return
-      this.promise = undefined
+      this.#promise = undefined
     })
 
     return promise
