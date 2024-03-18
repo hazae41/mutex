@@ -2,128 +2,20 @@ import { Future } from "@hazae41/future"
 import { Err, Ok, Result } from "@hazae41/result"
 import { Awaitable } from "libs/promises/promises.js"
 
-export type MutexError =
-  | MutexLockError
-
-export class MutexLockError extends Error {
-  readonly #class = MutexLockError
+export class LockedError extends Error {
+  readonly #class = LockedError
   readonly name = this.#class.name
 
   constructor() {
-    super(`Could not lock mutex`)
+    super("Locked")
   }
 
 }
 
-export class Mutex<T> {
-
-  #promise?: Promise<void>
-
-  /**
-   * Just a mutex
-   */
-  constructor(
-    readonly inner: T
-  ) { }
-
-  get promise() {
-    return this.#promise
-  }
-
-  get locked() {
-    return this.#promise != null
-  }
-
-  acquire(): Awaitable<Lock<T>> {
-    const future = new Future<void>()
-    const promise = this.#promise
-    this.lock(() => future.promise)
-
-    const release = () => future.resolve()
-    const access = new Lock(this.inner, release)
-
-    return promise
-      ? promise.then(() => access)
-      : access
-  }
-
-  /**
-   * Lock this mutex or wait
-   * @param callback 
-   * @returns 
-   */
-  lock<R>(callback: (inner: T) => Promise<R>): Promise<R> {
-    const promise = this.#promise
-      ? this.#promise.then(() => callback(this.inner))
-      : callback(this.inner)
-
-    const pure = promise
-      .then(() => { })
-      .catch(() => { })
-    this.#promise = pure
-
-    pure.finally(() => {
-      if (this.#promise !== pure)
-        return
-      this.#promise = undefined
-    })
-
-    return promise
-  }
-
-  /**
-   * Lock this mutex or throw error
-   * @param callback 
-   * @returns 
-   */
-  lockOrThrow<R>(callback: (inner: T) => Promise<R>): Promise<R> {
-    if (this.#promise != null)
-      throw new MutexLockError()
-
-    const promise = callback(this.inner)
-
-    const pure = promise
-      .then(() => { })
-      .catch(() => { })
-    this.#promise = pure
-
-    pure.finally(() => {
-      if (this.#promise !== pure)
-        return
-      this.#promise = undefined
-    })
-
-    return promise
-  }
-
-  /**
-   * Lock this mutex or return error
-   * @param callback 
-   * @returns 
-   */
-  tryLock<R>(callback: (inner: T) => Promise<R>): Result<Promise<R>, MutexLockError> {
-    if (this.#promise != null)
-      return new Err(new MutexLockError())
-
-    const promise = callback(this.inner)
-
-    const pure = promise
-      .then(() => { })
-      .catch(() => { })
-    this.#promise = pure
-
-    pure.finally(() => {
-      if (this.#promise !== pure)
-        return
-      this.#promise = undefined
-    })
-
-    return new Ok(promise)
-  }
-
-}
-
-export class Lock<T> {
+/**
+ * A releasable object
+ */
+export class Lock<T>{
 
   constructor(
     readonly inner: T,
@@ -132,6 +24,166 @@ export class Lock<T> {
 
   [Symbol.dispose]() {
     this.release()
+  }
+
+  get() {
+    return this.inner
+  }
+
+}
+
+/**
+ * A semaphore with some reference and some capacity
+ */
+export class Semaphore<T, N extends number = number> {
+
+  #queue = new Array<Future<void>>()
+  #count = 0
+
+  constructor(
+    readonly inner: T,
+    readonly capacity: N
+  ) { }
+
+  static void<N extends number>(capacity: N) {
+    return new Semaphore<void, N>(undefined, capacity)
+  }
+
+  get locked() {
+    return this.#count >= this.capacity
+  }
+
+  get count() {
+    return this.#count
+  }
+
+  /**
+   * Lock or throw an error
+   * @param callback 
+   */
+  lockOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    if (this.#count >= this.capacity)
+      throw new LockedError()
+
+    this.#count++
+
+    const promise = Promise.resolve(callback(this.inner))
+      .finally(() => this.#queue.shift()?.resolve())
+      .finally(() => this.#count--)
+
+    return promise
+  }
+
+  /**
+   * Lock or return an error
+   * @param callback 
+   * @returns 
+   */
+  tryLock<R>(callback: (inner: T) => Awaitable<R>): Result<Promise<R>, LockedError> {
+    if (this.#count >= this.capacity)
+      return new Err(new LockedError())
+
+    this.#count++
+
+    const promise = Promise.resolve(callback(this.inner))
+      .finally(() => this.#queue.shift()?.resolve())
+      .finally(() => this.#count--)
+
+    return new Ok(promise)
+  }
+
+  /**
+   * Lock or wait
+   * @param callback 
+   */
+  lock<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    this.#count++
+
+    if (this.#count > this.capacity) {
+      const future = new Future<void>()
+      this.#queue.push(future)
+
+      const promise = future.promise
+        .then(() => callback(this.inner))
+        .finally(() => this.#queue.shift()?.resolve())
+        .finally(() => this.#count--)
+
+      return promise
+    }
+
+    const promise = Promise.resolve(callback(this.inner))
+      .finally(() => this.#queue.shift()?.resolve())
+      .finally(() => this.#count--)
+
+    return promise
+  }
+
+  /**
+   * Just wait
+   * @returns 
+   */
+  wait(): Promise<void> {
+    const outer = new Future<void>()
+    this.lock(() => outer.resolve())
+    return outer.promise
+  }
+
+  /**
+   * Lock and return a disposable object
+   * @returns 
+   */
+  async acquire(): Promise<Lock<T>> {
+    const outer = new Future<void>()
+    const inner = new Future<void>()
+
+    this.lock(() => { outer.resolve(); return inner.promise })
+
+    await outer.promise
+
+    return new Lock(this.inner, () => inner.resolve())
+  }
+
+}
+
+/**
+ * A semaphore but with a capacity of 1
+ */
+export class Mutex<T> {
+
+  #semaphore: Semaphore<T, 1>
+
+  constructor(
+    readonly inner: T
+  ) {
+    this.#semaphore = new Semaphore(inner, 1)
+  }
+
+  static void() {
+    return new Mutex<void>(undefined)
+  }
+
+  get locked() {
+    return this.#semaphore.locked
+  }
+
+  lockOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    return this.#semaphore.lockOrThrow(callback)
+  }
+
+  tryLock<R>(callback: (inner: T) => Awaitable<R>): Result<Promise<R>, LockedError> {
+    return this.#semaphore.tryLock(callback)
+  }
+
+  lock<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    return this.#semaphore.lock(callback)
+  }
+
+  wait(): Promise<void> {
+    return this.#semaphore.wait()
+  }
+
+  async acquire(): Promise<Lock<T>> {
+    return await this.#semaphore.acquire()
   }
 
 }
