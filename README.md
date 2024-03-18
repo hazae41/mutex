@@ -16,6 +16,7 @@ npm i @hazae41/mutex
 - Similar to Rust
 - Can hold data
 - Unit-tested
+- Memory-safe
 - Uses Result from `@hazae41/result`
 
 ## Usage
