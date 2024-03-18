@@ -1,6 +1,6 @@
 import { assert, test } from "@hazae41/phobos";
 import { relative, resolve } from "path";
-import { Mutex } from "./mutex.js";
+import { Mutex, Semaphore } from "./mutex.js";
 
 const directory = resolve("./dist/test/")
 const { pathname } = new URL(import.meta.url)
@@ -100,4 +100,50 @@ await test("acquire", async ({ test, wait }) => {
       "third end"
     ]), `unexpected order`)
   })
+})
+
+await test("semaphore", async () => {
+
+  const semaphore = new Semaphore(undefined, 3)
+
+  const tick = async () => {
+    while (true) {
+      console.log("tick")
+      await new Promise(ok => setTimeout(ok, 100))
+    }
+  }
+
+  const lock = (i: number) => semaphore.lock(async () => {
+    console.log("start", i)
+    await new Promise(ok => setTimeout(ok, 1000))
+    console.log("end", i)
+  })
+
+  const wait = async () => {
+    console.log("wait")
+    await semaphore.wait()
+    console.log("done")
+  }
+
+  const acquire = async () => {
+    const lock = await semaphore.acquire()
+    console.log("acquire")
+    await new Promise(ok => setTimeout(ok, 1000))
+    console.log("release")
+    lock.release()
+  }
+
+  tick()
+  lock(1)
+  lock(2)
+  lock(3)
+  acquire()
+  lock(4)
+  lock(5)
+  wait()
+  lock(6)
+  lock(7)
+  lock(8)
+  lock(9)
+  lock(10)
 })
