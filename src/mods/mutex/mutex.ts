@@ -1,5 +1,4 @@
 import { Future } from "@hazae41/future"
-import { Err, Ok, Result } from "@hazae41/result"
 import { Awaitable } from "libs/promises/promises.js"
 
 export class LockedError extends Error {
@@ -15,7 +14,7 @@ export class LockedError extends Error {
 /**
  * A releasable object
  */
-export class Lock<T>{
+export class Lock<T> {
 
   constructor(
     readonly inner: T,
@@ -75,28 +74,10 @@ export class Semaphore<T, N extends number = number> {
   }
 
   /**
-   * Lock or return an error
-   * @param callback 
-   * @returns 
-   */
-  tryLock<R>(callback: (inner: T) => Awaitable<R>): Result<Promise<R>, LockedError> {
-    if (this.#count >= this.capacity)
-      return new Err(new LockedError())
-
-    this.#count++
-
-    const promise = Promise.resolve(callback(this.inner))
-      .finally(() => this.#queue.shift()?.resolve())
-      .finally(() => this.#count--)
-
-    return new Ok(promise)
-  }
-
-  /**
    * Lock or wait
    * @param callback 
    */
-  lock<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+  lockOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
     this.#count++
 
     if (this.#count > this.capacity) {
@@ -124,7 +105,7 @@ export class Semaphore<T, N extends number = number> {
    */
   wait(): Promise<void> {
     const outer = new Future<void>()
-    this.lock(() => outer.resolve())
+    this.lockOrWait(() => outer.resolve())
     return outer.promise
   }
 
@@ -136,7 +117,7 @@ export class Semaphore<T, N extends number = number> {
     const outer = new Future<void>()
     const inner = new Future<void>()
 
-    this.lock(() => { outer.resolve(); return inner.promise })
+    this.lockOrWait(() => { outer.resolve(); return inner.promise })
 
     await outer.promise
 
@@ -170,12 +151,8 @@ export class Mutex<T> {
     return this.#semaphore.lockOrThrow(callback)
   }
 
-  tryLock<R>(callback: (inner: T) => Awaitable<R>): Result<Promise<R>, LockedError> {
-    return this.#semaphore.tryLock(callback)
-  }
-
-  lock<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
-    return this.#semaphore.lock(callback)
+  lockOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    return this.#semaphore.lockOrWait(callback)
   }
 
   wait(): Promise<void> {
