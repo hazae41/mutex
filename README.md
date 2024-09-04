@@ -17,7 +17,6 @@ npm i @hazae41/mutex
 - Can hold data
 - Unit-tested
 - Memory-safe
-- Uses Result from `@hazae41/result`
 
 ## Usage
 
@@ -31,59 +30,46 @@ const mutex = new Mutex(123)
 /**
  * You can queue a callback 
  */
-async function lockOrWait() {
-  await mutex.lock(async (x) => /* do stuff with x */)
-}
-
-/**
- * You can return something from the callback
- */
-async function lockOrWaitAndLog() {
-  const x = await mutex.lock(async (x) => x)
-  console.log(x)
+async function runOrWait() {
+  await mutex.runOrWait((x) => /* do (async) stuff with x */)
 }
 
 /**
  * You can throw if the mutex is already locked
  */
-async function lockOrThrow() {
-  await mutex.lockOrThrow(async (x) => /* do stuff with x */)
+async function runOrThrow() {
+  await mutex.runOrThrow((x) => /* do stuff with x */)
 }
 
 /**
- * You can return a result if the mutex is already locked
+ * You can return something from the callback
  */
-async function tryLock() {
-  const result = mutex.tryLock(async (x) => /* do stuff with x */)
-
-  if (result.isErr()) // if couldn't lock
-    throw result.getErr()
-
-  await result.get() // wait task
+async function runOrWait2() {
+  const y = await mutex.runOrWait((x) => x * 2)
 }
 
 /**
- * You can just wait unlock without locking
+ * You can use async code
  */
-async function wait() {
-  await mutex.wait()
+async function runOrWait3() {
+  const y = await mutex.runOrWait(async (x) => await f(x))
 }
 
 /**
  * You can acquire and release when you want
  */
-async function acquire() {
-  const lock = await mutex.acquire()
-  console.log(lock.get())
-  lock.release()
+async function get() {
+  const x = await mutex.acquire()
+  const y = x.get() * 2
+  x.release()
 }
 
 /**
  * You can acquire and release with `using`
  */
-async function acquireAndUse() {
-  using lock = await mutex.acquire()
-  console.log(lock.get())
+async function get2() {
+  using x = await mutex.acquire()
+  const y = x.get() * 2
 }
 ```
 

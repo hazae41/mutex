@@ -70,12 +70,12 @@ export class Semaphore<T, N extends number = number> {
 
     this.#count++
 
-    const dispose = () => {
+    const release = () => {
       this.#queue.shift()?.resolve()
       this.#count--
     }
 
-    return new Lock(this.inner, dispose)
+    return new Lock(this.inner, release)
   }
 
   /**
@@ -91,12 +91,12 @@ export class Semaphore<T, N extends number = number> {
       await future.promise
     }
 
-    const dispose = () => {
+    const release = () => {
       this.#queue.shift()?.resolve()
       this.#count--
     }
 
-    return new Lock(this.inner, dispose)
+    return new Lock(this.inner, release)
   }
 
   /**
