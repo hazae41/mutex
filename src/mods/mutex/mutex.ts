@@ -86,7 +86,7 @@ export class Semaphore<T, N extends number = number> {
       this.#queue.push(future)
 
       const promise = future.promise
-        .then(() => callback(this.inner))
+        .then(async () => await callback(this.inner))
         .finally(() => this.#queue.shift()?.resolve())
         .finally(() => this.#count--)
 
@@ -94,7 +94,7 @@ export class Semaphore<T, N extends number = number> {
     }
 
     const promise = Promise.resolve()
-      .then(() => callback(this.inner))
+      .then(async () => await callback(this.inner))
       .finally(() => this.#queue.shift()?.resolve())
       .finally(() => this.#count--)
 
