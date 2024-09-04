@@ -61,49 +61,28 @@ export class Semaphore<T, N extends number = number> {
   }
 
   /**
-   * Lock or throw an error
-   * @param callback 
+   * Get and lock or throw
+   * @returns 
    */
-  async lockOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+  async getOrThrow(): Promise<Lock<T>> {
     if (this.#count >= this.capacity)
       throw new LockedError()
 
     this.#count++
 
-    try {
-      return await callback(this.inner)
-    } finally {
+    const dispose = () => {
       this.#queue.shift()?.resolve()
       this.#count--
     }
+
+    return new Lock(this.inner, dispose)
   }
 
   /**
-   * Lock or wait
-   * @param callback 
-   */
-  async lockOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
-    this.#count++
-
-    if (this.#count > this.capacity) {
-      const future = new Future<void>()
-      this.#queue.push(future)
-      await future.promise
-    }
-
-    try {
-      return await callback(this.inner)
-    } finally {
-      this.#queue.shift()?.resolve()
-      this.#count--
-    }
-  }
-
-  /**
-   * Lock and return a disposable object
+   * Get and lock or wait
    * @returns 
    */
-  async acquire(): Promise<Lock<T>> {
+  async getOrWait(): Promise<Lock<T>> {
     this.#count++
 
     if (this.#count > this.capacity) {
@@ -118,6 +97,45 @@ export class Semaphore<T, N extends number = number> {
     }
 
     return new Lock(this.inner, dispose)
+  }
+
+  /**
+   * Run and lock or throw
+   * @param callback 
+   */
+  async runOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    if (this.#count >= this.capacity)
+      throw new LockedError()
+
+    this.#count++
+
+    try {
+      return await callback(this.inner)
+    } finally {
+      this.#queue.shift()?.resolve()
+      this.#count--
+    }
+  }
+
+  /**
+   * Run and lock or wait
+   * @param callback 
+   */
+  async runOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    this.#count++
+
+    if (this.#count > this.capacity) {
+      const future = new Future<void>()
+      this.#queue.push(future)
+      await future.promise
+    }
+
+    try {
+      return await callback(this.inner)
+    } finally {
+      this.#queue.shift()?.resolve()
+      this.#count--
+    }
   }
 
 }
@@ -147,16 +165,20 @@ export class Mutex<T> {
     return this.inner
   }
 
-  async lockOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
-    return await this.#semaphore.lockOrThrow(callback)
+  async getOrThrow(): Promise<Lock<T>> {
+    return await this.#semaphore.getOrThrow()
   }
 
-  async lockOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
-    return await this.#semaphore.lockOrWait(callback)
+  async getOrWait(): Promise<Lock<T>> {
+    return await this.#semaphore.getOrWait()
   }
 
-  async acquire(): Promise<Lock<T>> {
-    return await this.#semaphore.acquire()
+  async runOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    return await this.#semaphore.runOrThrow(callback)
+  }
+
+  async runOrWait<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
+    return await this.#semaphore.runOrWait(callback)
   }
 
 }

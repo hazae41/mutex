@@ -10,7 +10,7 @@ await test("mutex", async ({ test, wait }) => {
   const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
-    await mutex.lockOrWait(async (order) => {
+    await mutex.runOrWait(async (order) => {
       order.push("first start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("first end")
@@ -18,7 +18,7 @@ await test("mutex", async ({ test, wait }) => {
   })
 
   test("second", async () => {
-    await mutex.lockOrWait(async (order) => {
+    await mutex.runOrWait(async (order) => {
       order.push("second start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("second end")
@@ -26,7 +26,7 @@ await test("mutex", async ({ test, wait }) => {
   })
 
   test("third", async () => {
-    await mutex.lockOrWait(async (order) => {
+    await mutex.runOrWait(async (order) => {
       order.push("third start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("third end")
@@ -34,14 +34,14 @@ await test("mutex", async ({ test, wait }) => {
   })
 
   test("try lock", async () => {
-    assert(await rejects(() => mutex.lockOrThrow(async () => { })), `tryLock should err`)
+    assert(await rejects(() => mutex.runOrThrow(async () => { })), `tryLock should err`)
   })
 
   await wait()
 
   assert(mutex.locked === false, `should be unlocked`)
 
-  await mutex.lockOrWait(async (order) => {
+  await mutex.runOrWait(async (order) => {
     assert(JSON.stringify(order) === JSON.stringify([
       "first start",
       "first end",
@@ -57,7 +57,7 @@ await test("acquire", async ({ test, wait }) => {
   const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
-    const lock = await mutex.acquire()
+    const lock = await mutex.getOrWait()
     lock.inner.push("first start")
     await new Promise(ok => setTimeout(ok, 100))
     lock.inner.push("first end")
@@ -65,7 +65,7 @@ await test("acquire", async ({ test, wait }) => {
   })
 
   test("second", async () => {
-    await mutex.lockOrWait(async (order) => {
+    await mutex.runOrWait(async (order) => {
       order.push("second start")
       await new Promise(ok => setTimeout(ok, 100))
       order.push("second end")
@@ -73,7 +73,7 @@ await test("acquire", async ({ test, wait }) => {
   })
 
   test("third", async () => {
-    const lock = await mutex.acquire()
+    const lock = await mutex.getOrWait()
     lock.inner.push("third start")
     await new Promise(ok => setTimeout(ok, 100))
     lock.inner.push("third end")
@@ -81,14 +81,14 @@ await test("acquire", async ({ test, wait }) => {
   })
 
   test("try lock", async () => {
-    assert(await rejects(() => mutex.lockOrThrow(async () => { })), `tryLock should err`)
+    assert(await rejects(() => mutex.runOrThrow(async () => { })), `tryLock should err`)
   })
 
   await wait()
 
   assert(mutex.locked === false, `should be unlocked`)
 
-  await mutex.lockOrWait(async (order) => {
+  await mutex.runOrWait(async (order) => {
     assert(JSON.stringify(order) === JSON.stringify([
       "first start",
       "first end",
@@ -111,7 +111,7 @@ await test("semaphore", async () => {
     }
   }
 
-  const lock = (i: number) => semaphore.lockOrWait(async () => {
+  const lock = (i: number) => semaphore.runOrWait(async () => {
     console.log("start", i)
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("end", i)
@@ -119,12 +119,12 @@ await test("semaphore", async () => {
 
   const wait = async () => {
     console.log("wait")
-    await semaphore.lockOrWait(() => { })
+    await semaphore.runOrWait(() => { })
     console.log("done")
   }
 
   const acquire = async () => {
-    const lock = await semaphore.acquire()
+    const lock = await semaphore.getOrWait()
     console.log("acquire")
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("release")
