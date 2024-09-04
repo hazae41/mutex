@@ -85,3 +85,5 @@ const b = await semaphore.getOrThrow()
 const c = await semaphore.getOrThrow()
 const d = await semaphore.getOrThrow() // will throw
 ```
+
+You can see it like `Mutex<T> = Semaphore<T, 1>`
