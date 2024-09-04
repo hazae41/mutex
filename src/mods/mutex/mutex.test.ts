@@ -119,7 +119,7 @@ await test("semaphore", async () => {
 
   const wait = async () => {
     console.log("wait")
-    await semaphore.wait()
+    await semaphore.lockOrWait(() => { })
     console.log("done")
   }
 
