@@ -58,8 +58,8 @@ async function runOrWait3() {
 /**
  * You can acquire and release when you want
  */
-async function get() {
-  const x = await mutex.acquire()
+async function getOrWait() {
+  const x = await mutex.getOrWait()
   const y = x.get() * 2
   x.release()
 }
@@ -67,8 +67,8 @@ async function get() {
 /**
  * You can acquire and release with `using`
  */
-async function get2() {
-  using x = await mutex.acquire()
+async function getOrWait2() {
+  using x = await mutex.getOrWait()
   const y = x.get() * 2
 }
 ```
@@ -77,3 +77,11 @@ async function get2() {
 
 Same functions as Mutex but you can specify a capacity
 
+```tsx
+const semaphore = new Semaphore(123, 3)
+
+const a = await semaphore.getOrThrow()
+const b = await semaphore.getOrThrow()
+const c = await semaphore.getOrThrow()
+const d = await semaphore.getOrThrow() // will throw
+```
