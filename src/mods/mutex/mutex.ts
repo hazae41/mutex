@@ -17,16 +17,16 @@ export class LockedError extends Error {
 export class Lock<T> {
 
   constructor(
-    readonly inner: T,
-    readonly release: () => void
+    readonly value: T,
+    readonly dispose: () => void
   ) { }
 
   [Symbol.dispose]() {
-    this.release()
+    this.dispose()
   }
 
   get() {
-    return this.inner
+    return this.value
   }
 
 }
@@ -40,7 +40,7 @@ export class Semaphore<T, N extends number = number> {
   #count = 0
 
   constructor(
-    readonly inner: T,
+    readonly value: T,
     readonly capacity: N
   ) { }
 
@@ -57,7 +57,26 @@ export class Semaphore<T, N extends number = number> {
   }
 
   get() {
-    return this.inner
+    return this.value
+  }
+
+  throw() {
+    if (!this.locked)
+      return
+    throw new LockedError()
+  }
+
+  async wait() {
+    this.#count++
+
+    if (this.#count > this.capacity) {
+      const future = new Future<void>()
+      this.#queue.push(future)
+      await future.promise
+    }
+
+    this.#queue.shift()?.resolve()
+    this.#count--
   }
 
   /**
@@ -65,7 +84,7 @@ export class Semaphore<T, N extends number = number> {
    * @returns 
    */
   async getOrThrow(): Promise<Lock<T>> {
-    if (this.#count >= this.capacity)
+    if (this.locked)
       throw new LockedError()
 
     this.#count++
@@ -75,7 +94,7 @@ export class Semaphore<T, N extends number = number> {
       this.#count--
     }
 
-    return new Lock(this.inner, release)
+    return new Lock(this.value, release)
   }
 
   /**
@@ -96,7 +115,7 @@ export class Semaphore<T, N extends number = number> {
       this.#count--
     }
 
-    return new Lock(this.inner, release)
+    return new Lock(this.value, release)
   }
 
   /**
@@ -104,13 +123,13 @@ export class Semaphore<T, N extends number = number> {
    * @param callback 
    */
   async runOrThrow<R>(callback: (inner: T) => Awaitable<R>): Promise<R> {
-    if (this.#count >= this.capacity)
+    if (this.locked)
       throw new LockedError()
 
     this.#count++
 
     try {
-      return await callback(this.inner)
+      return await callback(this.value)
     } finally {
       this.#queue.shift()?.resolve()
       this.#count--
@@ -131,7 +150,7 @@ export class Semaphore<T, N extends number = number> {
     }
 
     try {
-      return await callback(this.inner)
+      return await callback(this.value)
     } finally {
       this.#queue.shift()?.resolve()
       this.#count--
@@ -148,9 +167,9 @@ export class Mutex<T> {
   #semaphore: Semaphore<T, 1>
 
   constructor(
-    readonly inner: T
+    readonly value: T
   ) {
-    this.#semaphore = new Semaphore(inner, 1)
+    this.#semaphore = new Semaphore(value, 1)
   }
 
   static void() {
@@ -162,7 +181,15 @@ export class Mutex<T> {
   }
 
   get() {
-    return this.inner
+    return this.value
+  }
+
+  throw() {
+    this.#semaphore.throw()
+  }
+
+  async wait() {
+    await this.#semaphore.wait()
   }
 
   async getOrThrow(): Promise<Lock<T>> {

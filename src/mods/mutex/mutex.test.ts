@@ -1,4 +1,4 @@
-import { assert, rejects, test } from "@hazae41/phobos";
+import { assert, rejects, test, throws } from "@hazae41/phobos";
 import { relative, resolve } from "path";
 import { Mutex, Semaphore } from "./mutex.js";
 
@@ -34,7 +34,7 @@ await test("mutex", async ({ test, wait }) => {
   })
 
   test("try lock", async () => {
-    assert(await rejects(() => mutex.runOrThrow(async () => { })), `tryLock should err`)
+    assert(throws(() => mutex.throw()), `lock should err`)
   })
 
   await wait()
@@ -58,10 +58,10 @@ await test("acquire", async ({ test, wait }) => {
 
   test("first", async () => {
     const lock = await mutex.getOrWait()
-    lock.inner.push("first start")
+    lock.value.push("first start")
     await new Promise(ok => setTimeout(ok, 100))
-    lock.inner.push("first end")
-    lock.release()
+    lock.value.push("first end")
+    lock.dispose()
   })
 
   test("second", async () => {
@@ -74,10 +74,10 @@ await test("acquire", async ({ test, wait }) => {
 
   test("third", async () => {
     const lock = await mutex.getOrWait()
-    lock.inner.push("third start")
+    lock.value.push("third start")
     await new Promise(ok => setTimeout(ok, 100))
-    lock.inner.push("third end")
-    lock.release()
+    lock.value.push("third end")
+    lock.dispose()
   })
 
   test("try lock", async () => {
@@ -128,7 +128,7 @@ await test("semaphore", async () => {
     console.log("acquire")
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("release")
-    lock.release()
+    lock.dispose()
   }
 
   tick()
