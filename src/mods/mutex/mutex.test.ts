@@ -124,7 +124,7 @@ await test("semaphore", async () => {
   }
 
   const acquire = async () => {
-    const lock = await semaphore.getOrWait()
+    const lock = await semaphore.cloneOrWait()
     console.log("acquire")
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("release")

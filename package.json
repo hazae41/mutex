@@ -22,6 +22,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
+    "@hazae41/box": "^4.0.2",
     "@hazae41/future": "^1.0.3"
   },
   "devDependencies": {
