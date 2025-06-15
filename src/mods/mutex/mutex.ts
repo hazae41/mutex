@@ -18,7 +18,7 @@ export class LockedError extends Error {
  */
 export class Counter<T> {
 
-  #count = 1
+  #count = 0
 
   constructor(
     readonly value: T,
@@ -42,6 +42,9 @@ export class Counter<T> {
   }
 
   [Symbol.dispose]() {
+    if (this.count === 0)
+      return
+
     this.#count--
 
     if (this.#count > 0)
@@ -76,7 +79,7 @@ export class Semaphore<T, N extends number = number> {
 
   #queue = new Array<Future<void>>()
 
-  #count = 1
+  #count = 0
 
   constructor(
     readonly value: T,
@@ -101,6 +104,9 @@ export class Semaphore<T, N extends number = number> {
   }
 
   [Symbol.dispose]() {
+    if (this.count === 0)
+      return
+
     this.#count--
 
     this.#queue.shift()?.resolve()
@@ -218,7 +224,7 @@ export class Mutex<T> {
 
   #queue = new Array<Future<void>>()
 
-  #count = 1
+  #count = 0
 
   constructor(
     readonly value: T,
@@ -242,6 +248,9 @@ export class Mutex<T> {
   }
 
   [Symbol.dispose]() {
+    if (this.count === 0)
+      return
+
     this.#count--
 
     this.#queue.shift()?.resolve()

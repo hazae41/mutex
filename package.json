@@ -23,17 +23,18 @@
   },
   "dependencies": {
     "@hazae41/box": "^4.0.2",
-    "@hazae41/future": "^1.0.3"
+    "@hazae41/future": "^2.0.1"
   },
   "devDependencies": {
     "@hazae41/phobos": "^1.0.10",
     "@hazae41/rimraf": "^1.0.1",
-    "@rollup/plugin-typescript": "^11.1.5",
-    "@types/node": "^20.8.4",
-    "rollup": "^4.0.2",
-    "rollup-plugin-dts": "^6.1.0",
-    "rollup-plugin-node-externals": "^6.1.2",
-    "typescript": "^5.2.2"
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/node": "^24.0.1",
+    "rollup": "^4.43.0",
+    "rollup-plugin-dts": "^6.2.1",
+    "rollup-plugin-node-externals": "^8.0.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3"
   },
   "exports": {
     ".": {

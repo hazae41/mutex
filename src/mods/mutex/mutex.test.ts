@@ -6,8 +6,8 @@ const directory = resolve("./dist/test/")
 const { pathname } = new URL(import.meta.url)
 console.log(relative(directory, pathname))
 
-await test("mutex", async ({ test, wait }) => {
-  const mutex = new Mutex(new Array<string>())
+await test("run", async ({ test, wait }) => {
+  const mutex = Mutex.with(new Array<string>(), () => { })
 
   test("first", async () => {
     await mutex.runOrWait(async (order) => {
@@ -34,7 +34,7 @@ await test("mutex", async ({ test, wait }) => {
   })
 
   test("try lock", async () => {
-    assert(throws(() => mutex.throw()), `lock should err`)
+    assert(throws(() => mutex.getOrThrow()), `lock should err`)
   })
 
   await wait()
@@ -54,14 +54,13 @@ await test("mutex", async ({ test, wait }) => {
 })
 
 await test("acquire", async ({ test, wait }) => {
-  const mutex = new Mutex(new Array<string>())
+  const mutex = Mutex.with(new Array<string>(), () => { })
 
   test("first", async () => {
-    const lock = await mutex.getOrWait()
-    lock.value.push("first start")
+    using clone = await mutex.cloneOrWait()
+    clone.value.push("first start")
     await new Promise(ok => setTimeout(ok, 100))
-    lock.value.push("first end")
-    lock.dispose()
+    clone.value.push("first end")
   })
 
   test("second", async () => {
@@ -73,11 +72,10 @@ await test("acquire", async ({ test, wait }) => {
   })
 
   test("third", async () => {
-    const lock = await mutex.getOrWait()
-    lock.value.push("third start")
+    using clone = await mutex.cloneOrWait()
+    clone.value.push("third start")
     await new Promise(ok => setTimeout(ok, 100))
-    lock.value.push("third end")
-    lock.dispose()
+    clone.value.push("third end")
   })
 
   test("try lock", async () => {
@@ -101,8 +99,7 @@ await test("acquire", async ({ test, wait }) => {
 })
 
 await test("semaphore", async () => {
-
-  const semaphore = new Semaphore(undefined, 3)
+  const semaphore = Semaphore.with(undefined, () => { }, 3)
 
   const tick = async () => {
     while (true) {
@@ -124,11 +121,10 @@ await test("semaphore", async () => {
   }
 
   const acquire = async () => {
-    const lock = await semaphore.cloneOrWait()
+    using _ = await semaphore.cloneOrWait()
     console.log("acquire")
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("release")
-    lock.dispose()
   }
 
   tick()
