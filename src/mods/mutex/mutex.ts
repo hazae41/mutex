@@ -1,4 +1,4 @@
-import { Deferred, Void, Wrap } from "@hazae41/box"
+import { Deferred, Ref } from "@hazae41/box"
 import { Future } from "@hazae41/future"
 import { Awaitable } from "libs/awaitable/index.js"
 import { Nullable } from "libs/nullable/index.js"
@@ -14,65 +14,6 @@ export class LockedError extends Error {
 }
 
 /**
- * Unlimited counter
- */
-export class Counter<T> {
-
-  #count = 0
-
-  constructor(
-    readonly value: T,
-    readonly clean: Disposable
-  ) { }
-
-  static void() {
-    return new Counter<void>(undefined, new Void())
-  }
-
-  static wrap<T extends Disposable>(value: T) {
-    return new Counter(value, value)
-  }
-
-  static from<T>(value: Wrap<T>) {
-    return new Counter(value.get(), value)
-  }
-
-  static with<T>(value: T, clean: (value: T) => void) {
-    return new Counter(value, new Deferred(() => clean(value)))
-  }
-
-  [Symbol.dispose]() {
-    if (this.count === 0)
-      return
-
-    this.#count--
-
-    if (this.#count > 0)
-      return
-
-    this.clean[Symbol.dispose]()
-  }
-
-  async [Symbol.asyncDispose]() {
-    this[Symbol.dispose]()
-  }
-
-  get count() {
-    return this.#count
-  }
-
-  get() {
-    return this.value
-  }
-
-  clone() {
-    this.#count++
-    return this
-  }
-
-}
-
-/**
  * A limited counter
  */
 export class Semaphore<T, N extends number = number> {
@@ -83,42 +24,15 @@ export class Semaphore<T, N extends number = number> {
 
   constructor(
     readonly value: T,
-    readonly clean: Disposable,
     readonly limit: N
   ) { }
 
-  static void<N extends number>(limit: N) {
-    return new Semaphore<void, N>(undefined, new Void(), limit)
+  [Symbol.dispose](this: Semaphore<Disposable, N>) {
+    this.value[Symbol.dispose]()
   }
 
-  static wrap<T extends Disposable, N extends number>(value: T, limit: N) {
-    return new Semaphore<T, N>(value, value, limit)
-  }
-
-  static from<T, N extends number>(value: Wrap<T>, limit: N) {
-    return new Semaphore<T, N>(value.get(), value, limit)
-  }
-
-  static with<T, N extends number>(value: T, clean: (value: T) => void, limit: N) {
-    return new Semaphore<T, N>(value, new Deferred(() => clean(value)), limit)
-  }
-
-  [Symbol.dispose]() {
-    if (this.count === 0)
-      return
-
-    this.#count--
-
-    this.#queue.shift()?.resolve()
-
-    if (this.#count > 0)
-      return
-
-    this.clean[Symbol.dispose]()
-  }
-
-  async [Symbol.asyncDispose]() {
-    this[Symbol.dispose]()
+  async [Symbol.asyncDispose](this: Semaphore<AsyncDisposable, N>) {
+    await this.value[Symbol.asyncDispose]()
   }
 
   get count() {
@@ -154,36 +68,47 @@ export class Semaphore<T, N extends number = number> {
       await future.promise
     }
 
-    this[Symbol.dispose]()
+    this.#count--
+    this.#queue.shift()?.resolve()
   }
 
-  cloneOrNull(): Nullable<this> {
+  lockOrNull(): Nullable<Ref<T>> {
     if (this.#count >= this.limit)
       return
 
     this.#count++
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
    * Get and lock or throw
    * @returns 
    */
-  cloneOrThrow(): this {
+  lockOrThrow(): Ref<T> {
     if (this.#count >= this.limit)
       throw new LockedError()
 
     this.#count++
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
    * Get and lock or wait
    * @returns 
    */
-  async cloneOrWait(): Promise<this> {
+  async lockOrWait(): Promise<Ref<T>> {
     this.#count++
 
     if (this.#count > this.limit) {
@@ -192,7 +117,12 @@ export class Semaphore<T, N extends number = number> {
       await future.promise
     }
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
@@ -201,8 +131,17 @@ export class Semaphore<T, N extends number = number> {
    * @returns 
    */
   async runOrThrow<R>(callback: (value: T) => Awaitable<R>): Promise<R> {
-    using _ = this.cloneOrThrow()
-    return await callback(this.value)
+    if (this.#count >= this.limit)
+      throw new LockedError()
+
+    this.#count++
+
+    try {
+      return await callback(this.value)
+    } finally {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
   }
 
   /**
@@ -211,8 +150,20 @@ export class Semaphore<T, N extends number = number> {
    * @returns 
    */
   async runOrWait<R>(callback: (value: T) => Awaitable<R>): Promise<R> {
-    using _ = await this.cloneOrWait()
-    return await callback(this.value)
+    this.#count++
+
+    if (this.#count > this.limit) {
+      const future = new Future<void>()
+      this.#queue.push(future)
+      await future.promise
+    }
+
+    try {
+      return await callback(this.value)
+    } finally {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
   }
 
 }
@@ -227,42 +178,15 @@ export class Mutex<T> {
   #count = 0
 
   constructor(
-    readonly value: T,
-    readonly clean: Disposable
+    readonly value: T
   ) { }
 
-  static void() {
-    return new Mutex<void>(undefined, new Void())
+  [Symbol.dispose](this: Mutex<Disposable>) {
+    this.value[Symbol.dispose]()
   }
 
-  static wrap<T extends Disposable>(value: T) {
-    return new Mutex<T>(value, value)
-  }
-
-  static from<T>(value: Wrap<T>) {
-    return new Mutex<T>(value.get(), value)
-  }
-
-  static with<T>(value: T, clean: (value: T) => void) {
-    return new Mutex<T>(value, new Deferred(() => clean(value)))
-  }
-
-  [Symbol.dispose]() {
-    if (this.count === 0)
-      return
-
-    this.#count--
-
-    this.#queue.shift()?.resolve()
-
-    if (this.#count > 0)
-      return
-
-    this.clean[Symbol.dispose]()
-  }
-
-  async [Symbol.asyncDispose]() {
-    this[Symbol.dispose]()
+  async [Symbol.asyncDispose](this: Mutex<AsyncDisposable>) {
+    await this.value[Symbol.asyncDispose]()
   }
 
   get count() {
@@ -298,36 +222,47 @@ export class Mutex<T> {
       await future.promise
     }
 
-    this[Symbol.dispose]()
+    this.#count--
+    this.#queue.shift()?.resolve()
   }
 
-  cloneOrNull(): Nullable<this> {
+  lockOrNull(): Nullable<Ref<T>> {
     if (this.#count >= 1)
       return
 
     this.#count++
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
    * Get and lock or throw
    * @returns 
    */
-  cloneOrThrow(): this {
+  lockOrThrow(): Ref<T> {
     if (this.#count >= 1)
       throw new LockedError()
 
     this.#count++
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
    * Get and lock or wait
    * @returns 
    */
-  async cloneOrWait(): Promise<this> {
+  async lockOrWait(): Promise<Ref<T>> {
     this.#count++
 
     if (this.#count > 1) {
@@ -336,7 +271,12 @@ export class Mutex<T> {
       await future.promise
     }
 
-    return this
+    const dispose = () => {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
+
+    return new Ref(this.value, new Deferred(dispose))
   }
 
   /**
@@ -345,8 +285,17 @@ export class Mutex<T> {
    * @returns 
    */
   async runOrThrow<R>(callback: (value: T) => Awaitable<R>): Promise<R> {
-    using _ = this.cloneOrThrow()
-    return await callback(this.value)
+    if (this.#count >= 1)
+      throw new LockedError()
+
+    this.#count++
+
+    try {
+      return await callback(this.value)
+    } finally {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
   }
 
   /**
@@ -355,8 +304,20 @@ export class Mutex<T> {
    * @returns 
    */
   async runOrWait<R>(callback: (value: T) => Awaitable<R>): Promise<R> {
-    using _ = await this.cloneOrWait()
-    return await callback(this.value)
+    this.#count++
+
+    if (this.#count > 1) {
+      const future = new Future<void>()
+      this.#queue.push(future)
+      await future.promise
+    }
+
+    try {
+      return await callback(this.value)
+    } finally {
+      this.#count--
+      this.#queue.shift()?.resolve()
+    }
   }
 
 }

@@ -7,7 +7,7 @@ const { pathname } = new URL(import.meta.url)
 console.log(relative(directory, pathname))
 
 await test("run", async ({ test, wait }) => {
-  const mutex = Mutex.with(new Array<string>(), () => { })
+  const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
     await mutex.runOrWait(async (order) => {
@@ -54,10 +54,10 @@ await test("run", async ({ test, wait }) => {
 })
 
 await test("acquire", async ({ test, wait }) => {
-  const mutex = Mutex.with(new Array<string>(), () => { })
+  const mutex = new Mutex(new Array<string>())
 
   test("first", async () => {
-    using clone = await mutex.cloneOrWait()
+    using clone = await mutex.lockOrWait()
     clone.value.push("first start")
     await new Promise(ok => setTimeout(ok, 100))
     clone.value.push("first end")
@@ -72,7 +72,7 @@ await test("acquire", async ({ test, wait }) => {
   })
 
   test("third", async () => {
-    using clone = await mutex.cloneOrWait()
+    using clone = await mutex.lockOrWait()
     clone.value.push("third start")
     await new Promise(ok => setTimeout(ok, 100))
     clone.value.push("third end")
@@ -99,7 +99,7 @@ await test("acquire", async ({ test, wait }) => {
 })
 
 await test("semaphore", async () => {
-  const semaphore = Semaphore.with(undefined, () => { }, 3)
+  const semaphore = new Semaphore(undefined, 3)
 
   const tick = async () => {
     while (true) {
@@ -121,7 +121,7 @@ await test("semaphore", async () => {
   }
 
   const acquire = async () => {
-    using _ = await semaphore.cloneOrWait()
+    using _ = await semaphore.lockOrWait()
     console.log("acquire")
     await new Promise(ok => setTimeout(ok, 1000))
     console.log("release")
