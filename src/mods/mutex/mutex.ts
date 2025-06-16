@@ -1,4 +1,4 @@
-import { Deferred, Ref } from "@hazae41/box"
+import { Clone, Deferred, Ref } from "@hazae41/box"
 import { Future } from "@hazae41/future"
 import { Awaitable } from "libs/awaitable/index.js"
 import { Nullable } from "libs/nullable/index.js"
@@ -43,6 +43,11 @@ export class Semaphore<T, N extends number = number> {
     return this.#count >= this.limit
   }
 
+  #unlock() {
+    this.#count--
+    this.#queue.shift()?.resolve()
+  }
+
   get() {
     return this.value
   }
@@ -68,8 +73,7 @@ export class Semaphore<T, N extends number = number> {
       await future.promise
     }
 
-    this.#count--
-    this.#queue.shift()?.resolve()
+    this.#unlock()
   }
 
   lockOrNull(): Nullable<Ref<T>> {
@@ -78,12 +82,7 @@ export class Semaphore<T, N extends number = number> {
 
     this.#count++
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -96,12 +95,7 @@ export class Semaphore<T, N extends number = number> {
 
     this.#count++
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -117,12 +111,7 @@ export class Semaphore<T, N extends number = number> {
       await future.promise
     }
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -139,8 +128,7 @@ export class Semaphore<T, N extends number = number> {
     try {
       return await callback(this.value)
     } finally {
-      this.#count--
-      this.#queue.shift()?.resolve()
+      this.#unlock()
     }
   }
 
@@ -161,8 +149,7 @@ export class Semaphore<T, N extends number = number> {
     try {
       return await callback(this.value)
     } finally {
-      this.#count--
-      this.#queue.shift()?.resolve()
+      this.#unlock()
     }
   }
 
@@ -189,12 +176,18 @@ export class Mutex<T> {
     await this.value[Symbol.asyncDispose]()
   }
 
+
   get count() {
     return this.#count
   }
 
   get locked() {
     return this.#count >= 1
+  }
+
+  #unlock() {
+    this.#count--
+    this.#queue.shift()?.resolve()
   }
 
   get() {
@@ -222,8 +215,7 @@ export class Mutex<T> {
       await future.promise
     }
 
-    this.#count--
-    this.#queue.shift()?.resolve()
+    this.#unlock()
   }
 
   lockOrNull(): Nullable<Ref<T>> {
@@ -232,12 +224,7 @@ export class Mutex<T> {
 
     this.#count++
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -250,12 +237,7 @@ export class Mutex<T> {
 
     this.#count++
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -271,12 +253,7 @@ export class Mutex<T> {
       await future.promise
     }
 
-    const dispose = () => {
-      this.#count--
-      this.#queue.shift()?.resolve()
-    }
-
-    return new Ref(this.value, new Deferred(dispose))
+    return new Ref(this.value, new Deferred(() => this.#unlock()))
   }
 
   /**
@@ -293,8 +270,7 @@ export class Mutex<T> {
     try {
       return await callback(this.value)
     } finally {
-      this.#count--
-      this.#queue.shift()?.resolve()
+      this.#unlock()
     }
   }
 
@@ -315,9 +291,48 @@ export class Mutex<T> {
     try {
       return await callback(this.value)
     } finally {
-      this.#count--
-      this.#queue.shift()?.resolve()
+      this.#unlock()
     }
+  }
+
+  static cloneAndLockOrNull<T extends Disposable>(mutex: Clone<Mutex<T>>) {
+    const locked = mutex.get().lockOrNull()
+
+    if (locked == null)
+      return
+
+    const cloned = mutex.clone()
+
+    const dispose = () => {
+      using _cloned = cloned
+      using _locked = locked
+    }
+
+    return new Ref(locked.get(), new Deferred(dispose))
+  }
+
+  static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Mutex<T>>) {
+    const cloned = mutex.clone()
+    const locked = cloned.get().lockOrThrow()
+
+    const dispose = () => {
+      using _cloned = cloned
+      using _locked = locked
+    }
+
+    return new Ref(locked.get(), new Deferred(dispose))
+  }
+
+  static async cloneAndLockOrWait<T extends Disposable>(mutex: Clone<Mutex<T>>): Promise<Ref<T>> {
+    const cloned = mutex.clone()
+    const locked = await cloned.get().lockOrWait()
+
+    const dispose = () => {
+      using _cloned = cloned
+      using _locked = locked
+    }
+
+    return new Ref(locked.get(), new Deferred(dispose))
   }
 
 }

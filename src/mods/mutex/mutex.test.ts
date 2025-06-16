@@ -1,3 +1,4 @@
+import { Clone } from "@hazae41/box";
 import { assert, rejects, test, throws } from "@hazae41/phobos";
 import { relative, resolve } from "path";
 import { Mutex, Semaphore } from "./mutex.js";
@@ -5,6 +6,35 @@ import { Mutex, Semaphore } from "./mutex.js";
 const directory = resolve("./dist/test/")
 const { pathname } = new URL(import.meta.url)
 console.log(relative(directory, pathname))
+
+await test("clone", async () => {
+
+  class Resource {
+
+    disposed = false
+
+    constructor() { }
+
+    [Symbol.dispose]() {
+      this.disposed = true
+    }
+
+  }
+
+  const resource = new Resource()
+
+  {
+    const cloned = Clone.wrap(new Mutex(resource))
+    using locked = Mutex.cloneAndLockOrThrow(cloned)
+
+    cloned[Symbol.dispose]()
+
+    assert(resource.disposed === false)
+  }
+
+  assert(resource.disposed === true)
+})
+
 
 await test("run", async ({ test, wait }) => {
   const mutex = new Mutex(new Array<string>())
