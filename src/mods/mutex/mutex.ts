@@ -156,6 +156,52 @@ export class Semaphore<T, N extends number = number> {
     }
   }
 
+  static cloneAndLockOrNull<T extends Disposable>(mutex: Clone<Semaphore<T>>) {
+    using stack = Move.wrap(new Stack())
+
+    const cloned = mutex.clone()
+    stack.get().push(cloned)
+
+    const locked = cloned.get().lockOrNull()
+
+    if (locked == null)
+      return
+
+    stack.get().push(locked)
+
+    const unstack = stack.moveOrThrow()
+
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
+  }
+
+  static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Semaphore<T>>) {
+    using stack = Move.wrap(new Stack())
+
+    const cloned = mutex.clone()
+    stack.get().push(cloned)
+
+    const locked = cloned.get().lockOrThrow()
+    stack.get().push(locked)
+
+    const unstack = stack.moveOrThrow()
+
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
+  }
+
+  static async cloneAndLockOrWait<T extends Disposable>(mutex: Clone<Semaphore<T>>): Promise<Ref<T>> {
+    using stack = Move.wrap(new Stack())
+
+    const cloned = mutex.clone()
+    stack.get().push(cloned)
+
+    const locked = await cloned.get().lockOrWait()
+    stack.get().push(locked)
+
+    const unstack = stack.moveOrThrow()
+
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
+  }
+
 }
 
 /**
@@ -319,27 +365,31 @@ export class Mutex<T> {
   }
 
   static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Mutex<T>>) {
+    using stack = Move.wrap(new Stack())
+
     const cloned = mutex.clone()
+    stack.get().push(cloned)
+
     const locked = cloned.get().lockOrThrow()
+    stack.get().push(locked)
 
-    const dispose = () => {
-      using _cloned = cloned
-      using _locked = locked
-    }
+    const unstack = stack.moveOrThrow()
 
-    return new Ref(locked.get(), new Deferred(dispose))
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
   }
 
   static async cloneAndLockOrWait<T extends Disposable>(mutex: Clone<Mutex<T>>): Promise<Ref<T>> {
+    using stack = Move.wrap(new Stack())
+
     const cloned = mutex.clone()
+    stack.get().push(cloned)
+
     const locked = await cloned.get().lockOrWait()
+    stack.get().push(locked)
 
-    const dispose = () => {
-      using _cloned = cloned
-      using _locked = locked
-    }
+    const unstack = stack.moveOrThrow()
 
-    return new Ref(locked.get(), new Deferred(dispose))
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
   }
 
 }
