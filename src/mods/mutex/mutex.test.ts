@@ -22,10 +22,11 @@ await test("clone", async () => {
   }
 
   const resource = new Resource()
+  const original = Clone.wrap(new Mutex(resource))
 
   {
-    const cloned = Clone.wrap(new Mutex(resource))
-    using locked = Mutex.cloneAndLockOrThrow(cloned)
+    const cloned = new Mutex(resource)
+    using locked = cloned.lockOrThrow()
 
     cloned[Symbol.dispose]()
 

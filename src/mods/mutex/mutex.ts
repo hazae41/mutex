@@ -1,4 +1,4 @@
-import { Clone, Deferred, Ref } from "@hazae41/box"
+import { Clone, Deferred, Move, Ref, Stack } from "@hazae41/box"
 import { Future } from "@hazae41/future"
 import { Awaitable } from "libs/awaitable/index.js"
 import { Nullable } from "libs/nullable/index.js"
@@ -45,7 +45,10 @@ export class Semaphore<T, N extends number = number> {
 
   #unlock() {
     this.#count--
+
     this.#queue.shift()?.resolve()
+
+    return
   }
 
   get() {
@@ -176,7 +179,6 @@ export class Mutex<T> {
     await this.value[Symbol.asyncDispose]()
   }
 
-
   get count() {
     return this.#count
   }
@@ -187,7 +189,10 @@ export class Mutex<T> {
 
   #unlock() {
     this.#count--
+
     this.#queue.shift()?.resolve()
+
+    return
   }
 
   get() {
@@ -296,19 +301,21 @@ export class Mutex<T> {
   }
 
   static cloneAndLockOrNull<T extends Disposable>(mutex: Clone<Mutex<T>>) {
-    const locked = mutex.get().lockOrNull()
+    using stack = Move.wrap(new Stack())
+
+    const cloned = mutex.clone()
+    stack.get().push(cloned)
+
+    const locked = cloned.get().lockOrNull()
 
     if (locked == null)
       return
 
-    const cloned = mutex.clone()
+    stack.get().push(locked)
 
-    const dispose = () => {
-      using _cloned = cloned
-      using _locked = locked
-    }
+    const unstack = stack.moveOrThrow()
 
-    return new Ref(locked.get(), new Deferred(dispose))
+    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
   }
 
   static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Mutex<T>>) {
