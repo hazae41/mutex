@@ -1,6 +1,6 @@
 {
   "name": "@hazae41/mutex",
-  "version": "2.2.3",
+  "version": "3.0.0",
   "imports": {
     "@/": "./src/",
     "@hazae41/phobos": "jsr:@hazae41/phobos@^2.0.10",
