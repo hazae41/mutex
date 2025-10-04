@@ -1,28 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "es2024",
     "baseUrl": "./src",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "downlevelIteration": true,
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
     "paths": {
-      "mods/*": [
-        "mods/*"
-      ],
-      "libs/*": [
-        "libs/*"
-      ],
-      "tests/*": [
-        "tests/*"
-      ],
-    }
+      "@/*": ["./*"]
+    } ,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "./out",
+    "declaration": true,
+    "noCheck": true
   },
   "include": [
-    "./src/**/**.ts",
+    "./src/**/*"
   ],
+  "exclude": []
 }

@@ -1,14 +1,35 @@
-import { Clone, Deferred, Move, Ref, Stack } from "@hazae41/box"
-import { Future } from "@hazae41/future"
-import { Awaitable } from "libs/awaitable/index.js"
-import { Nullable } from "libs/nullable/index.js"
+import type { Awaitable } from "@/libs/awaitable/mod.ts"
+import type { Nullable } from "@/libs/nullable/mod.ts"
 
 export class LockedError extends Error {
   readonly #class = LockedError
-  readonly name = this.#class.name
+
+  readonly name: string = this.#class.name
 
   constructor() {
     super("Locked")
+  }
+
+}
+
+export class Lock<T> {
+
+  constructor(
+    readonly value: T,
+    readonly clean: () => void
+  ) { }
+
+  [Symbol.dispose]() {
+    this.clean()
+  }
+
+  // deno-lint-ignore require-await
+  async [Symbol.asyncDispose]() {
+    this[Symbol.dispose]()
+  }
+
+  get(): T {
+    return this.value
   }
 
 }
@@ -18,7 +39,7 @@ export class LockedError extends Error {
  */
 export class Semaphore<T, N extends number = number> {
 
-  #queue = new Array<Future<void>>()
+  #queue = new Array<PromiseWithResolvers<void>>()
 
   #count = 0
 
@@ -35,11 +56,11 @@ export class Semaphore<T, N extends number = number> {
     await this.value[Symbol.asyncDispose]()
   }
 
-  get count() {
+  get count(): number {
     return this.#count
   }
 
-  get locked() {
+  get locked(): boolean {
     return this.#count >= this.limit
   }
 
@@ -51,7 +72,7 @@ export class Semaphore<T, N extends number = number> {
     return
   }
 
-  get() {
+  get(): T {
     return this.value
   }
 
@@ -71,7 +92,7 @@ export class Semaphore<T, N extends number = number> {
     this.#count++
 
     if (this.#count > this.limit) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
@@ -79,42 +100,42 @@ export class Semaphore<T, N extends number = number> {
     this.#unlock()
   }
 
-  lockOrNull(): Nullable<Ref<T>> {
+  lockOrNull(): Nullable<Lock<T>> {
     if (this.#count >= this.limit)
       return
 
     this.#count++
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
    * Get and lock or throw
    * @returns 
    */
-  lockOrThrow(): Ref<T> {
+  lockOrThrow(): Lock<T> {
     if (this.#count >= this.limit)
       throw new LockedError()
 
     this.#count++
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
    * Get and lock or wait
    * @returns 
    */
-  async lockOrWait(): Promise<Ref<T>> {
+  async lockOrWait(): Promise<Lock<T>> {
     this.#count++
 
     if (this.#count > this.limit) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
@@ -144,7 +165,7 @@ export class Semaphore<T, N extends number = number> {
     this.#count++
 
     if (this.#count > this.limit) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
@@ -156,52 +177,6 @@ export class Semaphore<T, N extends number = number> {
     }
   }
 
-  static cloneAndLockOrNull<T extends Disposable>(mutex: Clone<Semaphore<T>>) {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = cloned.get().lockOrNull()
-
-    if (locked == null)
-      return
-
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
-  }
-
-  static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Semaphore<T>>) {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = cloned.get().lockOrThrow()
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
-  }
-
-  static async cloneAndLockOrWait<T extends Disposable>(mutex: Clone<Semaphore<T>>): Promise<Ref<T>> {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = await cloned.get().lockOrWait()
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
-  }
-
 }
 
 /**
@@ -209,7 +184,7 @@ export class Semaphore<T, N extends number = number> {
  */
 export class Mutex<T> {
 
-  #queue = new Array<Future<void>>()
+  #queue = new Array<PromiseWithResolvers<void>>()
 
   #count = 0
 
@@ -225,11 +200,11 @@ export class Mutex<T> {
     await this.value[Symbol.asyncDispose]()
   }
 
-  get count() {
+  get count(): number {
     return this.#count
   }
 
-  get locked() {
+  get locked(): boolean {
     return this.#count >= 1
   }
 
@@ -241,7 +216,7 @@ export class Mutex<T> {
     return
   }
 
-  get() {
+  get(): T {
     return this.value
   }
 
@@ -261,7 +236,7 @@ export class Mutex<T> {
     this.#count++
 
     if (this.#count > 1) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
@@ -269,42 +244,42 @@ export class Mutex<T> {
     this.#unlock()
   }
 
-  lockOrNull(): Nullable<Ref<T>> {
+  lockOrNull(): Nullable<Lock<T>> {
     if (this.#count >= 1)
       return
 
     this.#count++
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
    * Get and lock or throw
    * @returns 
    */
-  lockOrThrow(): Ref<T> {
+  lockOrThrow(): Lock<T> {
     if (this.#count >= 1)
       throw new LockedError()
 
     this.#count++
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
    * Get and lock or wait
    * @returns 
    */
-  async lockOrWait(): Promise<Ref<T>> {
+  async lockOrWait(): Promise<Lock<T>> {
     this.#count++
 
     if (this.#count > 1) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
 
-    return new Ref(this.value, new Deferred(() => this.#unlock()))
+    return new Lock(this.value, () => this.#unlock())
   }
 
   /**
@@ -334,7 +309,7 @@ export class Mutex<T> {
     this.#count++
 
     if (this.#count > 1) {
-      const future = new Future<void>()
+      const future = Promise.withResolvers<void>()
       this.#queue.push(future)
       await future.promise
     }
@@ -344,52 +319,6 @@ export class Mutex<T> {
     } finally {
       this.#unlock()
     }
-  }
-
-  static cloneAndLockOrNull<T extends Disposable>(mutex: Clone<Mutex<T>>) {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = cloned.get().lockOrNull()
-
-    if (locked == null)
-      return
-
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
-  }
-
-  static cloneAndLockOrThrow<T extends Disposable>(mutex: Clone<Mutex<T>>) {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = cloned.get().lockOrThrow()
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
-  }
-
-  static async cloneAndLockOrWait<T extends Disposable>(mutex: Clone<Mutex<T>>): Promise<Ref<T>> {
-    using stack = Move.wrap(new Stack())
-
-    const cloned = mutex.clone()
-    stack.get().push(cloned)
-
-    const locked = await cloned.get().lockOrWait()
-    stack.get().push(locked)
-
-    const unstack = stack.moveOrThrow()
-
-    return new Ref(locked.get(), new Deferred(() => unstack[Symbol.dispose]()))
   }
 
 }

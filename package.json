@@ -3,45 +3,27 @@
   "name": "@hazae41/mutex",
   "version": "2.2.2",
   "description": "Rust-like Mutex for TypeScript",
-  "homepage": "https://github.com/hazae41/mutex",
   "repository": "github:hazae41/mutex",
   "author": "hazae41",
-  "license": "MIT",
-  "main": "./dist/cjs/src/index.cjs",
-  "module": "./dist/esm/src/index.mjs",
-  "types": "./dist/types/index.d.ts",
-  "sideEffects": false,
-  "files": [
-    "./dist/esm",
-    "./dist/cjs",
-    "./dist/types"
-  ],
   "scripts": {
-    "build": "rimraf dist && rollup -c",
-    "test": "node ./dist/test/index.test.mjs",
-    "prepare": "npm run build"
+    "examine": "deno lint ./src && deno check ./src && deno test ./src",
+    "prepare": "rm -rf ./out && tsc && tscousin",
+    "version": "deno -RW ./x.vsync.ts && git add deno.json",
+    "synchro": "deno -RW ./x.dsync.ts && deno install"
   },
-  "dependencies": {
-    "@hazae41/box": "^4.0.4",
-    "@hazae41/future": "^2.0.1"
-  },
-  "devDependencies": {
-    "@hazae41/phobos": "^1.0.10",
-    "@hazae41/rimraf": "^1.0.1",
-    "@rollup/plugin-typescript": "^12.1.2",
-    "@types/node": "^24.0.1",
-    "rollup": "^4.43.0",
-    "rollup-plugin-dts": "^6.2.1",
-    "rollup-plugin-node-externals": "^8.0.0",
-    "tslib": "^2.8.1",
-    "typescript": "^5.8.3"
-  },
+  "files": [
+    "./out"
+  ],
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/esm/src/index.mjs",
-      "require": "./dist/cjs/src/index.cjs"
+      "types": "./out/mod.d.ts",
+      "import": "./out/mod.js"
     }
+  },
+  "devDependencies": {
+    "@hazae41/phobos": "^2.0.10",
+    "@hazae41/tscousin": "^1.0.9",
+    "typescript": "^5.9.2"
   },
   "keywords": [
     "mutex",
