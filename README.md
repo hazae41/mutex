@@ -3,10 +3,14 @@
 Rust-like Mutex and Semaphore for TypeScript
 
 ```bash
-npm i @hazae41/mutex
+npm install @hazae41/mutex
 ```
 
-[**Node Package 📦**](https://www.npmjs.com/package/@hazae41/mutex)
+```bash
+deno install jsr:@hazae41/mutex
+```
+
+[**📦 NPM**](https://www.npmjs.com/package/@hazae41/mutex) • [**📦 JSR**](https://jsr.io/@hazae41/mutex)
 
 ## Features
 
