@@ -4,7 +4,7 @@ import type { Nullable } from "@/libs/nullable/mod.ts"
 export class LockedError extends Error {
   readonly #class = LockedError
 
-  readonly name: string = this.#class.name
+  override readonly name: string = this.#class.name
 
   constructor() {
     super("Locked")
